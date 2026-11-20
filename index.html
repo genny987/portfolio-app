@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Portfolio Tracker</title>
+<meta name="theme-color" content="#1e293b">
+<meta name="mobile-web-app-capable" content="yes">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 input[type=number]::-webkit-inner-spin-button,
@@ -155,12 +157,17 @@ hr{border:none;border-top:1px solid #334155;margin:8px 0}
   .tabs::-webkit-scrollbar{display:none}
   .tab{padding:8px 10px;font-size:12px;white-space:nowrap}
   .content{padding:12px}
-  .g2{grid-template-columns:1fr!important}
-  .g3{grid-template-columns:1fr 1fr!important}
-  .g4{grid-template-columns:1fr 1fr!important}
-  .g2s{grid-template-columns:1fr!important}
-  .perf-grid{grid-template-columns:1fr!important}
-  .fg-grid{grid-template-columns:1fr 1fr!important}
+  .g2{grid-template-columns:minmax(0,1fr)!important}
+  .g3{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  .g4{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  .g2s{grid-template-columns:minmax(0,1fr)!important}
+  .perf-grid{grid-template-columns:minmax(0,1fr)!important}
+  .fg-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  .g2>*,.g3>*,.g4>*,.g2s>*,.perf-grid>*,.fg-grid>*{min-width:0}
+  /* inline grids written in the templates */
+  [style*="repeat(4,1fr)"],[style*="repeat(5,1fr)"],[style*="grid-template-columns:1fr 1fr 1fr"]{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  [style*="1fr 2fr 1fr"],[style*="repeat(3,1fr)"]{grid-template-columns:minmax(0,1fr)!important}
+  [style*="grid-template-columns:1fr 1fr"]{min-width:0}
   .det-hd{flex-direction:column;gap:10px}
   .pl-box{align-self:flex-start}
   .sum-v{gap:8px;font-size:11px}
@@ -171,8 +178,17 @@ hr{border:none;border-top:1px solid #334155;margin:8px 0}
   .tx-mobile{display:block}
   .tx-desktop{display:none}
   .pos-card .g4{grid-template-columns:1fr 1fr!important}
-  /* Header buttons stack */
-  .hdr-btns{flex-wrap:wrap!important;justify-content:flex-end}
+  /* Header: not sticky on a phone (tabs stay), buttons wrap into rows with bigger tap targets */
+  .header{position:static;flex-direction:column;align-items:stretch}
+  .hdr-btns{flex-wrap:wrap!important;justify-content:flex-start;gap:6px!important;width:100%}
+  .hdr-btn{font-size:12px;padding:8px 9px;min-height:38px}
+  .g3>:last-child:nth-child(odd),.g4>:last-child:nth-child(odd){grid-column:1/-1}
+  .tabs{top:0}
+  .tab{padding:12px 12px;font-size:13px}
+  /* Modals as near-full-width sheets */
+  .guide-modal>div:not(.guide-inner){margin:10px auto!important;width:calc(100% - 20px);max-width:none!important;padding:18px 16px!important}
+  .card{padding:14px}
+  .content{padding:10px}
   /* Currency grid */
   .ccy-grid{grid-template-columns:1fr 1fr!important}
 }
@@ -1186,7 +1202,7 @@ function render() {
       ? `<div style="font-size:11px;font-weight:700;color:#f59e0b;margin-top:2px;letter-spacing:.5px">${T('demoOn')} — changes won't affect your real data</div>`
       : `<div style="font-size:11px;color:#64748b;margin-top:2px">${settings.appSubtitle || T('appSubtitle')}</div>`}
   </div>
-  <div style="display:flex;align-items:center;gap:5px">
+  <div class="hdr-btns" style="display:flex;align-items:center;gap:5px">
       ${syncBtnHTML()}
       <button id="saveBtn" onclick="saveData()" title="${T('saveBtn')}" class="hdr-btn">${T('saveBtn')}</button>
       <div style="position:relative" id="export-dropdown-wrap">
@@ -6348,6 +6364,14 @@ function toggleContribTag(tag) {
   render();
 }
 
+if (location.protocol === 'https:' || location.hostname === 'localhost') {
+  // installable app: manifest + icon + a small service worker (offline shell). Not used for file:// copies.
+  try {
+    const m = document.createElement('link'); m.rel = 'manifest'; m.href = 'manifest.webmanifest'; document.head.appendChild(m);
+    const i = document.createElement('link'); i.rel = 'apple-touch-icon'; i.href = 'icon-192.png'; document.head.appendChild(i);
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+  } catch(_) {}
+}
 render();
 if (syncConfigured()) setTimeout(() => syncNow({}), 50);
 if (loadError) { const n=document.getElementById('notif'); if(n){ n.textContent=T('loadErrorNotif'); n.classList.add('show'); setTimeout(()=>n.classList.remove('show'),8000); } }
