@@ -1200,7 +1200,7 @@ function render() {
     <div style="font-size:15px;font-weight:700">Portfolio Tracker</div>
     ${demoMode
       ? `<div style="font-size:11px;font-weight:700;color:#f59e0b;margin-top:2px;letter-spacing:.5px">${T('demoOn')} — changes won't affect your real data</div>`
-      : `<div style="font-size:11px;color:#64748b;margin-top:2px">${settings.appSubtitle || T('appSubtitle')}</div>`}
+      : `<div style="font-size:11px;color:#64748b;margin-top:2px">${settings.appSubtitle || T('appSubtitle')} <span title="${APP_DATE}" style="color:#475569">· ${appVersionLabel()}</span></div>`}
   </div>
   <div class="hdr-btns" style="display:flex;align-items:center;gap:5px">
       ${syncBtnHTML()}
@@ -3373,7 +3373,7 @@ function guideHTML() {
     <li class="gd-li"><span class="gd-b">Unrealised P&amp;L</span> — evolution of your gain in euros. With multiple positions, a combined line appears below.</li>
   </ul>
   <div class="gd-hr"></div>
-  <p class="gd-p" style="text-align:center;color:#475569;font-size:12px">Portfolio Tracker · Personal use</p>
+  <p class="gd-p" style="text-align:center;color:#475569;font-size:12px">Portfolio Tracker ${appVersionLabel()} · Personal use</p>
 </div>`;
 }
 
@@ -3759,6 +3759,7 @@ ${bkGross > 0 ? `<div class="section">
 function exportData() {
   const payload = {
     _version: 1,
+    _app: APP_VERSION,
     _exported: new Date().toISOString(),
     _mode: demoMode ? 'demo' : 'real',
     positions,
@@ -4539,7 +4540,15 @@ function renderSettingsBody() {
       </div>`).join('')}
       <div style="font-size:11px;color:#475569;margin-top:8px;font-family:-apple-system,sans-serif">Shortcuts are disabled when typing in an input field.</div>
     </div>
+
+    <div class="settings-section">${VTT('about')}</div>
+    <div style="padding:6px 0 4px">
+      <div class="settings-label">Portfolio Tracker ${appVersionLabel()}</div>
+      <div class="settings-sublabel">${APP_DATE}</div>
+      <div id="verCheck" style="font-size:12px;margin-top:6px"></div>
+    </div>
   `;
+  checkOnlineVersion();
 }
 
 const DEFAULT_SETTINGS = {
@@ -4601,6 +4610,41 @@ function saveSettings() {
 }
 
 loadSettings();
+
+// ─── VERSION ─────────────────────────────────────────────────────────────────
+// Bump APP_VERSION (and the date) every time a new file is produced:
+//   patch (1.0.1) = bug fix · minor (1.1.0) = new feature · major (2.0.0) = big change / data format
+const APP_VERSION = '1.0.0';
+const APP_DATE = '2026-11-21';
+const APP_ONLINE_URL = 'https://genny987.github.io/portfolio-app/index.html';
+const VT = {
+  en: {about:'About', ok:'✓ same version as the online app', older:v=>`⚠ the online app is newer (v${v}) — replace this file`, newer:v=>`this file is newer than the online app (v${v}) — upload it to GitHub`},
+  it: {about:'Informazioni', ok:'✓ stessa versione dell’app online', older:v=>`⚠ l’app online è più recente (v${v}) — sostituisci questo file`, newer:v=>`questo file è più recente dell’app online (v${v}) — caricalo su GitHub`},
+  es: {about:'Acerca de', ok:'✓ misma versión que la app en línea', older:v=>`⚠ la app en línea es más reciente (v${v}) — sustituye este archivo`, newer:v=>`este archivo es más reciente que la app en línea (v${v}) — súbelo a GitHub`}
+};
+const VTT = k => (VT[lang] && VT[lang][k]) || VT.en[k];
+function cmpVer(a, b) {
+  const x = String(a).split('.').map(Number), y = String(b).split('.').map(Number);
+  for (let i = 0; i < 3; i++) { const d = (x[i] || 0) - (y[i] || 0); if (d) return d > 0 ? 1 : -1; }
+  return 0;
+}
+// A local copy of the file compares itself with the one published online
+async function checkOnlineVersion() {
+  const el = document.getElementById('verCheck');
+  if (!el || location.protocol === 'https:') return;
+  const ac = new AbortController(), t = setTimeout(() => ac.abort(), 7000);
+  try {
+    const r = await fetch(APP_ONLINE_URL + '?_=' + Date.now(), {cache:'no-store', signal:ac.signal});
+    const m = (await r.text()).match(/const APP_VERSION = '(\d+\.\d+\.\d+)'/);
+    const box = document.getElementById('verCheck');
+    if (!m || !box) return;
+    const c = cmpVer(APP_VERSION, m[1]);
+    box.textContent = c === 0 ? VTT('ok') : c < 0 ? VTT('older')(m[1]) : VTT('newer')(m[1]);
+    box.style.color = c === 0 ? '#34d399' : '#fbbf24';
+  } catch(_) { /* offline or blocked: just show nothing */ }
+  finally { clearTimeout(t); }
+}
+function appVersionLabel() { return 'v' + APP_VERSION; }
 
 // ─── CLOUD SYNC (GitHub, end-to-end encrypted) ───────────────────────────────
 // The dataset is encrypted in the browser (AES-GCM, key derived from a passphrase
@@ -4860,7 +4904,7 @@ function hasLocalData() {
     Object.keys(targets||{}).length > 0 || OTHER.some(o => (o.payments||[]).length || (o.history||[]).length || o.currentEUR || o.investedEUR);
 }
 function syncPayload() {
-  return {_version:1, _updated:new Date().toISOString(), positions, other:OTHER, closed:CLOSED, traspasado:TRASPASADO,
+  return {_version:1, _app:APP_VERSION, _updated:new Date().toISOString(), positions, other:OTHER, closed:CLOSED, traspasado:TRASPASADO,
     benchmark:benchmarkData, targets, settings:{customProxy:(settings.customProxy||'').trim()}};
 }
 function syncApply(d) {
